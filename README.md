@@ -32,7 +32,7 @@ O ecossistema do DistriChat foi desacoplado seguindo o modelo de **Microsserviç
 ### 1. Fluxo de Autenticação Remota Inter-Serviços (HTTP Síncrono)
 Para manter o `chat-service` totalmente independente, ele não consulta a tabela de utilizadores. O fluxo funciona assim:
 * O Front-end dispara uma requisição HTTP para o `chat-service` enviando um `Bearer Token`.
-* O `RemoteAuthMiddleware` intercepta a requisição e faz uma chamada síncrona `GET /api/user` para o `auth-service`.
+* O `RemoteAuthMiddleware` intercepta a requisição e faz uma chamada síncrona `GET /api/user` utilizando a URL interna configurada para o contêiner do `auth-service`.
 * O `auth-service` valida o token e retorna os dados do utilizador autenticado (`id`, `name`, `email`).
 * O Middleware injeta esses dados na requisição atual e permite o prosseguimento do fluxo. Se o `auth-service` estiver offline, o sistema responde automaticamente com `503 Service Unavailable`.
 
@@ -50,107 +50,70 @@ O sistema suporta mensagens privadas (1:1) e mensagens em salas públicas (1:N).
 * **Linguagem de Programação**: PHP 8.2+ (Framework Laravel 11).
 * **Servidor de WebSockets**: Laravel Reverb.
 * **Broker Distribuído**: Redis (Mecanismo Pub/Sub).
-* **Base de Dados**: SQLite / PostgreSQL (Persistência relacional).
+* **Base de Dados**: PostgreSQL (Persistência relacional em ambiente conteinerizado).
+* **Ambiente**: Docker & Docker Compose.
 * **Framework de Testes**: Pest PHP (Suite automatizada de testes unitários e de integração).
+* **Testes de Carga**: Grafana k6.
 
 ---
 
-## 🚀 Como Executar o Projeto Localmente
+## 🚀 Como Executar o Projeto via Docker Compose
+
+Todo o ecossistema (serviços, base de dados PostgreSQL, broker Redis e servidor de WebSockets) está conteinerizado e configurado para subir em conjunto.
 
 ### Pré-requisitos
-* PHP 8.2 ou superior instalado localmente.
-* Composer (Gerenciador de dependências do PHP).
-* Servidor Redis ativo (via gerenciador de pacotes ou Docker: `docker run -d -p 6379:6379 redis`).
+* Docker e Docker Compose instalados.
 
-### Configuração do `chat-service`
+### Passos para Inicialização
 
-1. Entre no diretório correspondente:
+1. Instale as dependências e configure os arquivos `.env` em ambos os serviços (`auth-service` e `chat-service`) apontando as conexões de banco para `postgres` e Redis para `redis`.
+
+2. Suba o cluster a partir da raiz do projeto:
 ```bash
-cd DistriChat/chat-service
+docker compose up -d --build
 ```
 
-2. Instale as dependências de backend e o driver do Redis:
+3. Execute as migrações e seeders para estruturar e popular os bancos de dados automaticamente:
 ```bash
-composer install
+docker exec -it districhat_auth php artisan migrate:fresh --seed --force
+docker exec -it districhat_chat_api php artisan migrate:fresh --seed --force
 ```
 
-
-3. Crie e configure o arquivo `.env`:
-```bash
-cp .env.example .env
-```
-
-
-Certifique-se de ativar o escalonamento horizontal via Redis configurando as seguintes chaves dentro do seu `.env`:
-```env
-REDIS_CLIENT=predis
-REDIS_HOST=127.0.0.1
-REDIS_PORT=6379
-
-REVERB_SCALING_ENABLED=true
-REVERB_SCALING_DRIVER=redis
-
-```
-
-
-4. Execute as migrações para preparar o banco de dados de mensagens:
-
-
-```bash
-php artisan migrate
-
-```
-
-
+A API do `auth-service` estará disponível na porta `8000` e a do `chat-service` na porta `8001`.
 
 ---
 
 ## 👥 Simulando a Escalabilidade Horizontal (Cluster de WebSockets)
 
-Para testar o comportamento de escalabilidade e alta disponibilidade exigido nos critérios do projeto, você pode inicializar múltiplos servidores WebSocket paralelos apontando para o mesmo Broker (Redis):
+Para testar o comportamento de escalabilidade e alta disponibilidade exigido nos critérios do projeto, a infraestrutura via Docker Compose já inicializa os serviços necessários apontando para o mesmo Broker (Redis).
 
-* **Instância do Servidor HTTP da API:**
-```bash
-php artisan serve --port=8000
-
-```
-
-
-* **Instância 01 do Servidor WebSocket (Porta 8080):**
-```bash
-php artisan reverb:start --port=8080
-
-```
-
-
-* **Instância 02 do Servidor WebSocket (Porta 8081):**
-```bash
-php artisan reverb:start --port=8081
-
-```
-
-
-
-Mesmo que o Utilizador A esteja conectado na Porta 8080 e o Utilizador B na Porta 8081, a troca de mensagens ocorrerá com baixa latência em tempo real, pois os servidores realizam a sincronia mútua via Redis Pub/Sub.
+Mesmo que os clientes estejam conectados em instâncias de servidores diferentes do cluster, a troca de mensagens ocorre com baixa latência em tempo real, pois os nós realizam a sincronia mútua via Redis Pub/Sub de forma transparente.
 
 ---
 
 ## 🧪 Suite de Testes Automatizados
 
-O sistema foi blindado seguindo a pirâmide de testes recomendada no plano de testes oficial:
+O sistema foi blindado seguindo a pirâmide de testes recomendada:
+* **Testes Unitários**: Validam o isolamento das regras de negócio do domínio e a persistência correta de modelos.
+* **Testes de Integração**: Simulam as requisições HTTP falsificando a comunicação (*HTTP Mocking*) com o `auth-service` para atestar a segurança e a resposta do middleware.
 
-* 
-**Testes Unitários**: Validam o isolamento das regras de negócio do domínio e a persistência correta de modelos.
-
-
-* 
-**Testes de Integração**: Simulam as requisições HTTP falsificando a comunicação (*HTTP Mocking*) com o `auth-service` para atestar a segurança e a resposta do middleware.
-
-
-
-Para rodar todos os testes implementados e garantir a integridade da aplicação, execute:
-
+Para rodar todos os testes implementados dentro do ambiente conteinerizado, execute:
 ```bash
-php artisan test
-
+docker exec -it districhat_chat_api php artisan test
 ```
+
+---
+
+## 📊 Testes de Carga e Estresse (k6)
+
+Para validar a resiliência e a estabilidade da arquitetura sob concorrência, foi realizada uma bateria de testes de carga simulando múltiplos usuários virtuais (`VUs`) disparando mensagens simultaneamente através do **Grafana k6**.
+
+Para reproduzir os testes integrados à rede do Docker, execute o comando abaixo a partir da raiz do projeto:
+```bash
+docker run --rm --network districhat_districhat_network -i grafana/k6 run - < bateria-testes.js
+```
+
+### Resultados Obtidos
+* **Taxa de Sucesso**: 100% das requisições completadas com sucesso (HTTP 201 Created).
+* **Falhas de Conexão**: 0.00% de erro de requisição (`http_req_failed`).
+* **Estabilidade**: O desacoplamento e a validação remota via Middleware suportaram a concorrência sem degradação ou interrupção dos serviços, comprovando a robustez da arquitetura proposta.

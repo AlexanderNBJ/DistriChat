@@ -8,6 +8,22 @@ services:
     networks:
       - districhat_network
 
+  # Banco de Dados PostgreSQL
+  postgres:
+    image: postgres:16-alpine
+    container_name: districhat_postgres
+    restart: always
+    environment:
+      POSTGRES_DB: districhat
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: root
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data:Z
+    networks:
+      - districhat_network
+
   # Microsserviço de Autenticação
   auth-service:
     image: serversideup/php:8.4-cli
@@ -21,6 +37,7 @@ services:
     command: php artisan serve --host=0.0.0.0 --port=8000
     depends_on:
       - redis
+      - postgres
     networks:
       - districhat_network
 
@@ -38,6 +55,7 @@ services:
     depends_on:
       - redis
       - auth-service
+      - postgres
     networks:
       - districhat_network
 
@@ -60,3 +78,6 @@ services:
 networks:
   districhat_network:
     driver: bridge
+
+volumes:
+  postgres_data:

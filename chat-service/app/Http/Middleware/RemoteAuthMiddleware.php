@@ -29,7 +29,7 @@ class RemoteAuthMiddleware
             // Faz uma chamada HTTP síncrona para o microsserviço de autenticação
             $response = Http::withToken($token)
                 ->acceptJson()
-                ->get('http://127.0.0.1:8000/api/user');
+                ->get(env('AUTH_SERVICE_URL', 'http://districhat_auth:8000') . '/api/user');
 
             // Se o auth-service recusar o token (401, 403, etc), barramos aqui
             if ($response->failed()) {
