@@ -65,22 +65,19 @@ O sistema suporta mensagens privadas (1:1) e mensagens em salas públicas (1:N).
 ### Configuração do `chat-service`
 
 1. Entre no diretório correspondente:
-   ```bash
-   cd ~/Workspace/personal/DistriChat/chat-service
-
+```bash
+cd DistriChat/chat-service
 ```
 
 2. Instale as dependências de backend e o driver do Redis:
 ```bash
 composer install
-
 ```
 
 
 3. Crie e configure o arquivo `.env`:
 ```bash
 cp .env.example .env
-
 ```
 
 
