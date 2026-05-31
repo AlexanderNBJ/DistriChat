@@ -18,11 +18,15 @@ export default function () {
         headers: {
             'Content-Type': 'application/json',
             // Simulando o token que passaria pelo seu RemoteAuthMiddleware
-            'Authorization': 'Bearer token-valido-de-teste', 
+            'Authorization': 'Bearer 1|token-valido-de-teste', // Adicionamos o "1|" na frente
         },
     };
 
     const res = http.post(url, payload, params);
+
+    if (res.status !== 201) {
+        console.log(`Erro: ${res.status} - Body: ${res.body}`);
+    }
 
     // Garante que o sistema está respondendo com o status de criação correto (201)
     check(res, {

@@ -30,15 +30,17 @@ class DatabaseSeeder extends Seeder
             'password' => Hash::make('123456'),
         ]);
 
-        DB::table('personal_access_tokens')->updateOrInsert(
-            ['tokenable_id' => 1, 'name' => 'k6-token-hashed'],
-            [
-                'tokenable_type' => 'App\Models\User',
-                'token' => hash('sha256', 'token-valido-de-teste'),
-                'abilities' => '["*"]',
-                'created_at' => now(),
-                'updated_at' => now()
-            ]
-        );
+        DB::table('personal_access_tokens')->truncate();
+
+        DB::table('personal_access_tokens')->insert([
+            'id' => 1,
+            'tokenable_type' => 'App\Models\User',
+            'tokenable_id' => 1,
+            'name' => 'k6-token',
+            'token' => hash('sha256', 'token-valido-de-teste'),
+            'abilities' => '["*"]',
+            'created_at' => now(),
+            'updated_at' => now()
+        ]);
     }
 }
