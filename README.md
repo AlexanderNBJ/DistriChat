@@ -1,28 +1,28 @@
 # DistriChat 💬
 
-Sistema de chat em tempo real desenvolvido como Trabalho Final para a disciplina de **Sistemas Distribuídos** no **CEFET-MG**, sob a orientação da **Professora Michelle Hanne (2026/1)**[cite: 1, 3]. O projeto demonstra na prática conceitos fundamentais de sistemas distribuídos modernos, com foco em alta disponibilidade, isolamento de escopo, escalabilidade horizontal e comunicação assíncrona baseada em eventos[cite: 7, 9, 16, 19].
+Sistema de chat em tempo real desenvolvido como Trabalho Final para a disciplina de **Sistemas Distribuídos** no **CEFET-MG**, sob a orientação da **Professora Michelle Hanne (2026/1)**. O projeto demonstra na prática conceitos fundamentais de sistemas distribuídos modernos, com foco em alta disponibilidade, isolamento de escopo, escalabilidade horizontal e comunicação assíncrona baseada em eventos.
 
 ---
 
 ## 🎯 Objetivos do Projeto
 
-O propósito central do DistriChat é construir uma plataforma de comunicação confiável e eficiente[cite: 5], mitigando gargalos comuns de infraestrutura por meio de uma arquitetura distribuída projetada para garantir:
-* **Alta Disponibilidade**: Garantir a continuidade do serviço de mensagens e autenticação mesmo se uma ou mais instâncias falharem no cluster[cite: 7].
-* **Comunicação em Tempo Real**: Garantir baixa latência na entrega das mensagens entre os utilizadores[cite: 8].
-* **Escalabilidade Horizontal**: Permitir que novas instâncias do servidor de aplicação e de WebSockets sejam adicionadas dinamicamente para suportar picos de carga de utilizadores simultâneos[cite: 9].
+O propósito central do DistriChat é construir uma plataforma de comunicação confiável e eficiente, mitigando gargalos comuns de infraestrutura por meio de uma arquitetura distribuída projetada para garantir:
+* **Alta Disponibilidade**: Garantir a continuidade do serviço de mensagens e autenticação mesmo se uma ou mais instâncias falharem no cluster.
+* **Comunicação em Tempo Real**: Garantir baixa latência na entrega das mensagens entre os utilizadores.
+* **Escalabilidade Horizontal**: Permitir que novas instâncias do servidor de aplicação e de WebSockets sejam adicionadas dinamicamente para suportar picos de carga de utilizadores simultâneos.
 
 ---
 
 ## 🏗️ Estrutura de Sistemas Distribuídos (Arquitetura)
 
-O ecossistema do DistriChat foi desacoplado seguindo o modelo de **Microsserviços**, quebrando a aplicação em dois domínios totalmente independentes e isolados[cite: 16]:
+O ecossistema do DistriChat foi desacoplado seguindo o modelo de **Microsserviços**, quebrando a aplicação em dois domínios totalmente independentes e isolados:
 
-1. **`auth-service`**: Microsserviço isolado responsável pelo ciclo de vida do utilizador, efetuando o registo, validação de credenciais de login e emissão de tokens de acesso[cite: 17].
-2. **`chat-service`**: Microsserviço responsável pela lógica de negócio do chat (envio, recebimento, armazenamento do histórico de mensagens e difusão em tempo real)[cite: 18].
+1. **`auth-service`**: Microsserviço isolado responsável pelo ciclo de vida do utilizador, efetuando o registo, validação de credenciais de login e emissão de tokens de acesso.
+2. **`chat-service`**: Microsserviço responsável pela lógica de negócio do chat (envio, recebimento, armazenamento do histórico de mensagens e difusão em tempo real).
 
 ### Componentes de Infraestrutura Distribuída
-* **Banco de Dados Isolado**: Cada microsserviço possui o seu próprio banco de dados, evitando acoplamento na camada de dados e otimizando a persistência das tabelas relacionais de utilizadores e mensagens[cite: 20, 21].
-* **Laravel Reverb (Servidor WebSocket)**: Servidor de alto desempenho embutido que gerencia conexões persistentes bidirecionais (*stateful*) diretamente com o Front-end[cite: 19, 30].
+* **Banco de Dados Isolado**: Cada microsserviço possui o seu próprio banco de dados, evitando acoplamento na camada de dados e otimizando a persistência das tabelas relacionais de utilizadores e mensagens.
+* **Laravel Reverb (Servidor WebSocket)**: Servidor de alto desempenho embutido que gerencia conexões persistentes bidirecionais (*stateful*) diretamente com o Front-end.
 * **Redis como Broker (Pub/Sub)**: Funciona como o intermediário distribuído (*Horizontal Scaling Broker*). Quando múltiplas instâncias do `chat-service` e do Reverb estão no ar, o Redis replica todos os eventos de mensagens entre os nós do cluster, permitindo que utilizadores conectados em servidores físicos diferentes conversem perfeitamente.
 
 ---
@@ -32,26 +32,26 @@ O ecossistema do DistriChat foi desacoplado seguindo o modelo de **Microsserviç
 ### 1. Fluxo de Autenticação Remota Inter-Serviços (HTTP Síncrono)
 Para manter o `chat-service` totalmente independente, ele não consulta a tabela de utilizadores. O fluxo funciona assim:
 * O Front-end dispara uma requisição HTTP para o `chat-service` enviando um `Bearer Token`.
-* O `RemoteAuthMiddleware` intercepta a requisição e faz uma chamada síncrona `GET /api/user` para o `auth-service`[cite: 32].
-* O `auth-service` valida o token e retorna os dados do utilizador autenticado (`id`, `name`, `email`)[cite: 32].
-* O Middleware injeta esses dados na requisição atual e permite o prosseguimento do fluxo. Se o `auth-service` estiver offline, o sistema responde automaticamente com `503 Service Unavailable`[cite: 32].
+* O `RemoteAuthMiddleware` intercepta a requisição e faz uma chamada síncrona `GET /api/user` para o `auth-service`.
+* O `auth-service` valida o token e retorna os dados do utilizador autenticado (`id`, `name`, `email`).
+* O Middleware injeta esses dados na requisição atual e permite o prosseguimento do fluxo. Se o `auth-service` estiver offline, o sistema responde automaticamente com `503 Service Unavailable`.
 
 ### 2. Fluxo de Envio e Transmissão em Tempo Real (Híbrido)
-O sistema suporta mensagens privadas (1:1) e mensagens em salas públicas (1:N)[cite: 28]. O ciclo de vida de uma mensagem compreende:
+O sistema suporta mensagens privadas (1:1) e mensagens em salas públicas (1:N). O ciclo de vida de uma mensagem compreende:
 * **Entrada**: O utilizador envia uma mensagem HTTP POST para o endpoint `/api/messages`.
-* **Persistência**: O `MessageController` valida os dados e guarda a mensagem na base de dados para manter o histórico[cite: 29].
+* **Persistência**: O `MessageController` valida os dados e guarda a mensagem na base de dados para manter o histórico.
 * **Broadcast**: O backend dispara o evento distribuído `MessageSent`.
-* **Propagação Local e Global**: O Laravel publica esse evento no canal correspondente do **Redis**. Todas as instâncias do *Laravel Reverb* escutam o Redis e repassam o pacote instantaneamente através da conexão WebSocket aberta para o Front-end dos utilizadores destinatários[cite: 30].
+* **Propagação Local e Global**: O Laravel publica esse evento no canal correspondente do **Redis**. Todas as instâncias do *Laravel Reverb* escutam o Redis e repassam o pacote instantaneamente através da conexão WebSocket aberta para o Front-end dos utilizadores destinatários.
 
 ---
 
 ## 🛠️ Stack Tecnológica
 
-* **Linguagem de Programação**: PHP 8.2+ (Framework Laravel 11)[cite: 14].
-* **Servidor de WebSockets**: Laravel Reverb[cite: 19, 30].
+* **Linguagem de Programação**: PHP 8.2+ (Framework Laravel 11).
+* **Servidor de WebSockets**: Laravel Reverb.
 * **Broker Distribuído**: Redis (Mecanismo Pub/Sub).
-* **Base de Dados**: SQLite / PostgreSQL (Persistência relacional)[cite: 21].
-* **Framework de Testes**: Pest PHP (Suite automatizada de testes unitários e de integração)[cite: 32].
+* **Base de Dados**: SQLite / PostgreSQL (Persistência relacional).
+* **Framework de Testes**: Pest PHP (Suite automatizada de testes unitários e de integração).
 
 ---
 
