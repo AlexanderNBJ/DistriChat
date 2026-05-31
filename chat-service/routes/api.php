@@ -2,6 +2,7 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\MessageController;
 
 // Rota protegida pela validação remota de microsserviços
 Route::middleware('auth.remote')->group(function () {
@@ -13,4 +14,8 @@ Route::middleware('auth.remote')->group(function () {
             'user' => $request->user_data
         ]);
     });
+
+    // Endpoints do Chat
+    Route::get('/messages', [MessageController::class, 'index']);
+    Route::post('/messages', [MessageController::class, 'store']);
 });

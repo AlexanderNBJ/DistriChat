@@ -1,6 +1,9 @@
 <?php
 
 use Illuminate\Support\Facades\Http;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use App\Models\Message;
+uses(RefreshDatabase::class);
 
 test('deve permitir acesso se o token for valido no auth-service', function () {
     // Simulamos que o auth-service (porta 8000) respondeu 200 OK com os dados do usuário
@@ -54,4 +57,55 @@ test('deve retornar 503 se o auth-service estiver fora do ar', function () {
     // Asserção: Deve retornar o status de serviço indisponível
     $response->assertStatus(503)
         ->assertJsonPath('message', 'Serviço de autenticação indisponível no momento.');
+});
+
+test('deve permitir enviar uma mensagem se estiver autenticado remotamente', function () {
+    // Simular o microsserviço de autenticação com sucesso
+    Http::fake([
+        'http://127.0.0.1:8000/api/user' => Http::response([
+            'id' => 7, // Nosso utilizador simulado tem ID 7
+            'name' => 'Alexander',
+            'email' => 'alex@cefet.com'
+        ], 200)
+    ]);
+
+    // Fazer o disparo POST para criar a mensagem
+    $response = $this->withToken('token-valido')
+        ->postJson('/api/messages', [
+            'receiver_id' => 12,
+            'content' => 'Testando a rota integrada!'
+        ]);
+
+    // Asserções
+    $response->assertStatus(201)
+        ->assertJsonPath('message', 'Mensagem enviada com sucesso!')
+        ->assertJsonPath('data.sender_id', 7) // Validar se usou o ID injetado
+        ->assertJsonPath('data.content', 'Testando a rota integrada!');
+
+    // Verificar se persistiu mesmo na BD
+    $this->assertDatabaseHas('messages', [
+        'sender_id' => 7,
+        'receiver_id' => 12,
+        'content' => 'Testando a rota integrada!'
+    ]);
+});
+
+test('deve listar o histórico de mensagens privadas corretamente', function () {
+    Http::fake([
+        'http://127.0.0.1:8000/api/user' => Http::response(['id' => 7], 200)
+    ]);
+
+    // Criar mensagens prévias no banco de dados para o teste
+    Message::create(['sender_id' => 7, 'receiver_id' => 12, 'content' => 'Primeira mensagem']);
+    Message::create(['sender_id' => 12, 'receiver_id' => 7, 'content' => 'Resposta recebida']);
+    Message::create(['sender_id' => 7, 'receiver_id' => 99, 'content' => 'Mensagem para outro utilizador']); // Não deve aparecer
+
+    // Chamar o endpoint pedindo o histórico com o utilizador 12
+    $response = $this->withToken('token-valido')
+        ->getJson('/api/messages?receiver_id=12');
+
+    $response->assertStatus(200)
+        ->assertJsonCount(2) // Apenas as 2 mensagens relevantes devem voltar
+        ->assertJsonPath('0.content', 'Primeira mensagem')
+        ->assertJsonPath('1.content', 'Resposta recebida');
 });
