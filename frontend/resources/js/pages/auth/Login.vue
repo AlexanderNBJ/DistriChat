@@ -11,20 +11,13 @@ import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import { register } from '@/routes';
 import { ref } from 'vue';
-
-defineOptions({
-    layout: {
-        title: 'Log in to your account',
-        description: 'Enter your email and password below to log in',
-    },
-});
+import { MessageSquare, ArrowRight } from 'lucide-vue-next';
 
 defineProps<{
     status?: string;
     canResetPassword: boolean;
 }>();
 
-// Estado do formulário
 const form = useForm({
     email: '',
     password: '',
@@ -44,11 +37,7 @@ const submit = async () => {
         if (response.data.token) {
             localStorage.setItem('token', response.data.token);
             localStorage.setItem('user', JSON.stringify(response.data.user));
-
-            console.log("Login com sucesso! Redirecionando...");
             window.location.href = '/dashboard';
-        } else {
-            console.error("Resposta do servidor não contém o token:", response.data);
         }
     } catch (error: any) {
         alert(error.response?.data?.message || 'Credenciais inválidas');
@@ -61,61 +50,93 @@ const submit = async () => {
 <template>
     <Head title="Log in" />
 
-    <div v-if="status" class="mb-4 text-center text-sm font-medium text-green-600">
-        {{ status }}
-    </div>
-
-    <!-- Trocamos o componente <Form> por um <form> padrão do HTML com @submit.prevent -->
-    <form @submit.prevent="submit" class="flex flex-col gap-6">
-        <div class="grid gap-6">
-            <div class="grid gap-2">
-                <Label for="email">Email address</Label>
-                <!-- Adicionado v-model="form.email" -->
-                <Input
-                    id="email"
-                    type="email"
-                    required
-                    autofocus
-                    v-model="form.email"
-                    placeholder="email@example.com"
-                />
-                <InputError :message="form.errors.email" />
+    <div class="flex flex-col gap-8 w-full max-w-sm mx-auto">
+        <!-- BRANDING / HEADER -->
+        <div class="flex flex-col items-center gap-3 text-center">
+            <div class="flex aspect-square size-12 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-lg shadow-indigo-500/20">
+                <MessageSquare class="size-7" />
             </div>
+            <div class="space-y-1">
+                <h1 class="text-2xl font-black tracking-tighter italic uppercase text-foreground">DistriChat</h1>
+                <p class="text-sm text-muted-foreground font-medium">Bem-vindo de volta! Sentimos sua falta.</p>
+            </div>
+        </div>
 
-            <div class="grid gap-2">
-                <div class="flex items-center justify-between">
-                    <Label for="password">Password</Label>
+        <div v-if="status" class="p-3 rounded-lg bg-emerald-500/10 text-emerald-600 text-center text-sm font-medium border border-emerald-500/20">
+            {{ status }}
+        </div>
+
+        <form @submit.prevent="submit" class="flex flex-col gap-6">
+            <div class="grid gap-4">
+                <!-- E-MAIL -->
+                <div class="grid gap-2">
+                    <Label for="email" class="text-xs font-bold uppercase tracking-widest opacity-70">Endereço de E-mail</Label>
+                    <Input
+                        id="email"
+                        type="email"
+                        required
+                        autofocus
+                        v-model="form.email"
+                        placeholder="nome@exemplo.com"
+                        class="h-11 bg-muted/30 border-border/50 focus-visible:ring-indigo-500 rounded-xl px-4"
+                    />
+                    <InputError :message="form.errors.email" />
                 </div>
-                <!-- Adicionado v-model="form.password" -->
-                <PasswordInput
-                    id="password"
-                    required
-                    v-model="form.password"
-                    placeholder="Password"
-                />
-                <InputError :message="form.errors.password" />
+
+                <!-- SENHA -->
+                <div class="grid gap-2">
+                    <div class="flex items-center justify-between">
+                        <Label for="password" class="text-xs font-bold uppercase tracking-widest opacity-70">Senha</Label>
+                    </div>
+                    <PasswordInput
+                        id="password"
+                        required
+                        v-model="form.password"
+                        placeholder="••••••••"
+                        class="h-11 bg-muted/30 border-border/50 focus-visible:ring-indigo-500 rounded-xl px-4"
+                    />
+                    <InputError :message="form.errors.password" />
+                </div>
+
+                <!-- LEMBRAR-ME -->
+                <div class="flex items-center justify-between mt-1">
+                    <Label for="remember" class="flex items-center gap-2 cursor-pointer group">
+                        <Checkbox id="remember" v-model:checked="form.remember" class="border-border/50 data-[state=checked]:bg-indigo-600" />
+                        <span class="text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors">Lembrar de mim</span>
+                    </Label>
+                </div>
+
+                <!-- BOTÃO SUBMIT -->
+                <Button
+                    type="submit"
+                    class="mt-2 h-12 w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-500/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                    :disabled="processing"
+                >
+                    <Spinner v-if="processing" class="mr-2 border-white/30 border-t-white" />
+                    <span>Acessar o Chat</span>
+                    <ArrowRight v-if="!processing" class="ml-2 size-4" />
+                </Button>
             </div>
 
-            <div class="flex items-center justify-between">
-                <Label for="remember" class="flex items-center space-x-3">
-                    <Checkbox id="remember" v-model:checked="form.remember" />
-                    <span>Remember me</span>
-                </Label>
+            <!-- FOOTER -->
+            <div class="text-center text-sm font-medium text-muted-foreground">
+                Novo por aqui?
+                <TextLink :href="register()" class="text-indigo-600 hover:text-indigo-500 font-bold ml-1 underline underline-offset-4">
+                    Criar uma conta gratuita
+                </TextLink>
             </div>
-
-            <Button
-                type="submit"
-                class="mt-4 w-full"
-                :disabled="processing"
-            >
-                <Spinner v-if="processing" />
-                Log in
-            </Button>
-        </div>
-
-        <div class="text-center text-sm text-muted-foreground">
-            Don't have an account?
-            <TextLink :href="register()" :tabindex="5">Sign up</TextLink>
-        </div>
-    </form>
+        </form>
+    </div>
 </template>
+
+<style scoped>
+/* Adiciona uma animação suave de entrada */
+form {
+    animation: fadeIn 0.5s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+</style>

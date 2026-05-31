@@ -1,77 +1,24 @@
 <script setup lang="ts">
-import { Link, usePage } from '@inertiajs/vue3';
-import { BookOpen, Folder, LayoutGrid, Menu, Search } from 'lucide-vue-next';
-import { computed } from 'vue';
+import { ref, onMounted } from 'vue'; // Adicione ref e onMounted
+import { Link } from '@inertiajs/vue3';
+import { LayoutGrid, Menu, Search, MessageSquare, Settings } from 'lucide-vue-next';
 import AppLogo from '@/components/AppLogo.vue';
-import AppLogoIcon from '@/components/AppLogoIcon.vue';
-import Breadcrumbs from '@/components/Breadcrumbs.vue';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import {
-    NavigationMenu,
-    NavigationMenuItem,
-    NavigationMenuList,
-    navigationMenuTriggerStyle,
-} from '@/components/ui/navigation-menu';
-import {
-    Sheet,
-    SheetContent,
-    SheetHeader,
-    SheetTitle,
-    SheetTrigger,
-} from '@/components/ui/sheet';
-import {
-    Tooltip,
-    TooltipContent,
-    TooltipProvider,
-    TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import UserMenuContent from '@/components/UserMenuContent.vue';
-import { useCurrentUrl } from '@/composables/useCurrentUrl';
 import { getInitials } from '@/composables/useInitials';
-import { toUrl } from '@/lib/utils';
 import { dashboard } from '@/routes';
-import type { BreadcrumbItem, NavItem } from '@/types';
 
-type Props = {
-    breadcrumbs?: BreadcrumbItem[];
-};
+const localUser = ref({ name: 'Usuário', email: '', avatar: null });
 
-const props = withDefaults(defineProps<Props>(), {
-    breadcrumbs: () => [],
+onMounted(() => {
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) localUser.value = JSON.parse(storedUser);
 });
 
-const page = usePage();
-const auth = computed(() => page.props.auth);
-const { isCurrentUrl, whenCurrentUrl } = useCurrentUrl();
-
-const activeItemStyles =
-    'text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100';
-
-const mainNavItems: NavItem[] = [
-    {
-        title: 'Dashboard',
-        href: dashboard(),
-        icon: LayoutGrid,
-    },
-];
-
-const rightNavItems: NavItem[] = [
-    {
-        title: 'Repository',
-        href: 'https://github.com/laravel/vue-starter-kit',
-        icon: Folder,
-    },
-    {
-        title: 'Documentation',
-        href: 'https://laravel.com/docs/starter-kits#vue',
-        icon: BookOpen,
-    },
+const mainNavItems = [
+    { title: 'Chat Distribuído', href: dashboard(), icon: MessageSquare },
 ];
 </script>
 
@@ -280,4 +227,20 @@ const rightNavItems: NavItem[] = [
             </div>
         </div>
     </div>
+
+    <DropdownMenu>
+        <DropdownMenuTrigger :as-child="true">
+            <Button variant="ghost" size="icon" class="relative size-10 rounded-full">
+                <Avatar class="size-8 overflow-hidden rounded-full">
+                    <AvatarFallback class="bg-primary text-primary-foreground">
+                        {{ getInitials(localUser.name) }}
+                    </AvatarFallback>
+                </Avatar>
+            </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" class="w-56">
+            <!-- Passamos o localUser para o conteúdo do menu -->
+            <UserMenuContent :user="localUser" />
+        </DropdownMenuContent>
+    </DropdownMenu>
 </template>

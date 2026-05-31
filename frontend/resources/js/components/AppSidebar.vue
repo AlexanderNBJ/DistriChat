@@ -1,8 +1,5 @@
 <script setup lang="ts">
-import { Link } from '@inertiajs/vue3';
-import { BookOpen, FolderGit2, LayoutGrid } from 'lucide-vue-next';
-import AppLogo from '@/components/AppLogo.vue';
-import NavFooter from '@/components/NavFooter.vue';
+import { MessageSquare, Settings2, ShieldCheck, Users } from 'lucide-vue-next';
 import NavMain from '@/components/NavMain.vue';
 import NavUser from '@/components/NavUser.vue';
 import {
@@ -11,56 +8,49 @@ import {
     SidebarFooter,
     SidebarHeader,
     SidebarMenu,
-    SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
-import type { NavItem } from '@/types';
 
-const mainNavItems: NavItem[] = [
+const mainNavItems = [
     {
-        title: 'Dashboard',
+        title: 'Mensagens',
         href: dashboard(),
-        icon: LayoutGrid,
-    },
+        icon: MessageSquare,
+        isActive: true
+    }
 ];
 
-const footerNavItems: NavItem[] = [
-    {
-        title: 'Repository',
-        href: 'https://github.com/laravel/vue-starter-kit',
-        icon: FolderGit2,
-    },
-    {
-        title: 'Documentation',
-        href: 'https://laravel.com/docs/starter-kits#vue',
-        icon: BookOpen,
-    },
+const footerNavItems = [
+    { title: 'Segurança', href: '#', icon: ShieldCheck },
+    { title: 'Configurações', href: '#', icon: Settings2 },
 ];
 </script>
 
 <template>
-    <Sidebar collapsible="icon" variant="inset">
-        <SidebarHeader>
+    <Sidebar collapsible="icon" variant="sidebar" class="border-r border-border/50">
+        <SidebarHeader class="h-16 border-b border-border/50 flex justify-center">
             <SidebarMenu>
                 <SidebarMenuItem>
-                    <SidebarMenuButton size="lg" as-child>
-                        <Link :href="dashboard()">
-                            <AppLogo />
-                        </Link>
-                    </SidebarMenuButton>
+                    <div class="flex items-center gap-3 px-2">
+                        <div class="flex aspect-square size-8 items-center justify-center rounded-lg bg-indigo-600 text-white shadow-lg">
+                            <MessageSquare class="size-5" />
+                        </div>
+                        <div class="grid flex-1 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden">
+                            <span class="truncate font-black tracking-tighter italic text-foreground uppercase">DISTRI CHAT</span>
+                            <span class="truncate text-[10px] opacity-50 font-bold">CEFET-MG</span>
+                        </div>
+                    </div>
                 </SidebarMenuItem>
             </SidebarMenu>
         </SidebarHeader>
 
-        <SidebarContent>
+        <SidebarContent class="bg-background">
             <NavMain :items="mainNavItems" />
         </SidebarContent>
 
-        <SidebarFooter>
-            <NavFooter :items="footerNavItems" />
+        <SidebarFooter class="bg-background border-t border-border/50">
             <NavUser />
         </SidebarFooter>
     </Sidebar>
-    <slot />
 </template>
