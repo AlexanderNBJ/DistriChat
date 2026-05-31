@@ -3,34 +3,41 @@
 namespace Database\Seeders;
 
 use App\Models\User;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 
 class DatabaseSeeder extends Seeder
 {
-    use WithoutModelEvents;
-
-    /**
-     * Seed the application's database.
-     */
     public function run(): void
     {
-        // Criar apenas a base de utilizadores local sem disparar factories duplicadas
-        DB::table('users')->updateOrInsert(['id' => 1], [
-            'name' => 'Remetente k6',
-            'email' => 'sender@k6.com',
-            'password' => bcrypt('secret'),
-            'created_at' => now(),
-            'updated_at' => now()
-        ]);
+        // Usuário 1 - Remetente padrão para testes
+        User::updateOrCreate(
+            ['email' => 'sender@k6.com'],
+            [
+                'id' => 1,
+                'name' => 'Remetente k6',
+                'password' => Hash::make('secret'),
+            ]
+        );
 
-        DB::table('users')->updateOrInsert(['id' => 2], [
-            'name' => 'Destinatario k6',
-            'email' => 'receiver@k6.com',
-            'password' => bcrypt('secret'),
-            'created_at' => now(),
-            'updated_at' => now()
-        ]);
+        // Usuário 2 - Destinatário padrão para testes
+        User::updateOrCreate(
+            ['email' => 'receiver@k6.com'],
+            [
+                'id' => 2,
+                'name' => 'Destinatario k6',
+                'password' => Hash::make('secret'),
+            ]
+        );
+
+        // Usuário para você usar no navegador
+        User::updateOrCreate(
+            ['email' => 'alex@teste.com'],
+            [
+                'id' => 3,
+                'name' => 'Alexander',
+                'password' => Hash::make('123456'),
+            ]
+        );
     }
 }

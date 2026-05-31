@@ -24,6 +24,29 @@ O ecossistema do DistriChat foi desacoplado seguindo o modelo de **Microsserviç
 * **Banco de Dados Isolado**: Cada microsserviço possui o seu próprio banco de dados, evitando acoplamento na camada de dados e otimizando a persistência das tabelas relacionais de utilizadores e mensagens.
 * **Laravel Reverb (Servidor WebSocket)**: Servidor de alto desempenho embutido que gerencia conexões persistentes bidirecionais (*stateful*) diretamente com o Front-end.
 * **Redis como Broker (Pub/Sub)**: Funciona como o intermediário distribuído (*Horizontal Scaling Broker*). Quando múltiplas instâncias do `chat-service` e do Reverb estão no ar, o Redis replica todos os eventos de mensagens entre os nós do cluster, permitindo que utilizadores conectados em servidores físicos diferentes conversem perfeitamente.
+---
+
+
+## 🧩 Princípios de Sistemas Distribuídos Aplicados
+**Princípios de Sistemas Distribuídos Aplicados**
+* **Transparência de Localização:** O front-end interage com endpoints lógicos, sem conhecimento da topologia física dos serviços ou de onde os dados estão armazenados.
+* **Tolerância a Falhas (Fault Tolerance):** O sistema utiliza *fail-fast* no `RemoteAuthMiddleware`. Se o serviço de autenticação estiver indisponível, o sistema de chat interrompe a operação de escrita para garantir a integridade, retornando um erro controlado (HTTP 503).
+* **Desacoplamento e Independência:** Cada serviço possui seu próprio ciclo de vida, banco de dados e escala, evitando que um erro em um domínio derrube o ecossistema inteiro.
+
+```text
+       [ Cliente / Front-end ]
+              |
+      (1) HTTP Auth / (3) WS Real-time
+              v
+    +-----------------------+          +-----------------------+
+    |     auth-service      | <--(2)-- |     chat-service      |
+    | (Port: 8000)          |  (HTTP)  | (Port: 8001 / 8080)   |
+    +----------+------------+          +-----------+-----------+
+               |                                   |
+        [ DB districhat_auth ]             [ DB districhat_chat ]
+                                                   |
+                                            [ Redis Broker ]
+```
 
 ---
 
