@@ -28,7 +28,6 @@ O ecossistema do DistriChat foi desacoplado seguindo o modelo de **Microsserviç
 
 
 ## 🧩 Princípios de Sistemas Distribuídos Aplicados
-**Princípios de Sistemas Distribuídos Aplicados**
 * **Transparência de Localização:** O front-end interage com endpoints lógicos, sem conhecimento da topologia física dos serviços ou de onde os dados estão armazenados.
 * **Tolerância a Falhas (Fault Tolerance):** O sistema utiliza *fail-fast* no `RemoteAuthMiddleware`. Se o serviço de autenticação estiver indisponível, o sistema de chat interrompe a operação de escrita para garantir a integridade, retornando um erro controlado (HTTP 503).
 * **Desacoplamento e Independência:** Cada serviço possui seu próprio ciclo de vida, banco de dados e escala, evitando que um erro em um domínio derrube o ecossistema inteiro.
@@ -103,6 +102,24 @@ docker exec -it districhat_chat_api php artisan migrate:fresh --seed --force
 ```
 
 A API do `auth-service` estará disponível na porta `8000` e a do `chat-service` na porta `8001`.
+
+4. Prepare a interface do usuário (Frontend):
+```bash
+cd frontend
+npm install
+npm run build
+```
+
+---
+
+## 🌐 Acesso ao Sistema
+
+Após a inicialização, o ecossistema distribuído estará disponível nos seguintes endereços:
+
+*   **Interface Web (Frontend):** [http://localhost:8002](http://localhost:8002)
+*   **Microsserviço de Autenticação:** `http://localhost:8000`
+*   **Microsserviço de Chat:** `http://localhost:8001`
+*   **Servidor WebSocket (Reverb):** `ws://localhost:8080`
 
 ---
 
