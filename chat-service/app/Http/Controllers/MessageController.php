@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Message;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use App\Events\MessageSent;
 
 class MessageController extends Controller
 {
@@ -47,17 +48,14 @@ class MessageController extends Controller
      */
     public function store(Request $request): JsonResponse
     {
-        // Validação dos dados recebidos
         $validated = $request->validate([
             'content' => 'required|string|max:5000',
             'receiver_id' => 'required_without:room_id|integer|nullable',
             'room_id' => 'required_without:receiver_id|integer|nullable',
         ]);
 
-        // Recuperar o ID do emissor que o nosso Middleware validou e injetou
         $senderId = $request->user_data['id'];
 
-        // Criar o registo no banco de dados
         $message = Message::create([
             'sender_id' => $senderId,
             'receiver_id' => $validated['receiver_id'] ?? null,
@@ -65,6 +63,8 @@ class MessageController extends Controller
             'content' => $validated['content'],
         ]);
 
+        // Dispara o evento para o Laravel Reverb
+        broadcast(new MessageSent($message))->toOthers();
 
         return response()->json([
             'message' => 'Mensagem enviada com sucesso!',

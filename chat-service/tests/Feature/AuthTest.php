@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Http;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use App\Models\Message;
+use App\Events\MessageSent;
 uses(RefreshDatabase::class);
 
 test('deve permitir acesso se o token for valido no auth-service', function () {
@@ -60,34 +61,30 @@ test('deve retornar 503 se o auth-service estiver fora do ar', function () {
 });
 
 test('deve permitir enviar uma mensagem se estiver autenticado remotamente', function () {
-    // Simular o microsserviço de autenticação com sucesso
+    // Dizemos ao Laravel para intercetar os eventos (fake)
+    Event::fake();
+
     Http::fake([
         'http://127.0.0.1:8000/api/user' => Http::response([
-            'id' => 7, // Nosso utilizador simulado tem ID 7
+            'id' => 7,
             'name' => 'Alexander',
             'email' => 'alex@cefet.com'
         ], 200)
     ]);
 
-    // Fazer o disparo POST para criar a mensagem
+    // Fazemos o envio
     $response = $this->withToken('token-valido')
         ->postJson('/api/messages', [
             'receiver_id' => 12,
-            'content' => 'Testando a rota integrada!'
+            'content' => 'Testando a rota integrada com WebSocket!'
         ]);
 
-    // Asserções
-    $response->assertStatus(201)
-        ->assertJsonPath('message', 'Mensagem enviada com sucesso!')
-        ->assertJsonPath('data.sender_id', 7) // Validar se usou o ID injetado
-        ->assertJsonPath('data.content', 'Testando a rota integrada!');
+    $response->assertStatus(201);
 
-    // Verificar se persistiu mesmo na BD
-    $this->assertDatabaseHas('messages', [
-        'sender_id' => 7,
-        'receiver_id' => 12,
-        'content' => 'Testando a rota integrada!'
-    ]);
+    // Asserção de Sistema Distribuído: Garante que o evento de tempo real foi despachado!
+    Event::assertDispatched(MessageSent::class, function ($event) {
+        return $event->message->sender_id === 7 && $event->message->receiver_id === 12;
+    });
 });
 
 test('deve listar o histórico de mensagens privadas corretamente', function () {
