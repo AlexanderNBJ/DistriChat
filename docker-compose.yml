@@ -1,0 +1,62 @@
+services:
+  # Broker de Mensagens (Mecanismo Pub/Sub)
+  redis:
+    image: redis:alpine
+    container_name: districhat_redis
+    ports:
+      - "6379:6379"
+    networks:
+      - districhat_network
+
+  # Microsserviço de Autenticação
+  auth-service:
+    image: serversideup/php:8.4-cli
+    container_name: districhat_auth
+    volumes:
+      - ./auth-service:/var/www/html:z
+    ports:
+      - "8000:8000"
+    environment:
+      - AUTORUN_ENABLED=false
+    command: php artisan serve --host=0.0.0.0 --port=8000
+    depends_on:
+      - redis
+    networks:
+      - districhat_network
+
+  # Microsserviço de Chat (API HTTP)
+  chat-service:
+    image: serversideup/php:8.4-cli
+    container_name: districhat_chat_api
+    volumes:
+      - ./chat-service:/var/www/html:z
+    ports:
+      - "8001:8001"
+    environment:
+      - AUTORUN_ENABLED=false
+    command: php artisan serve --host=0.0.0.0 --port=8001
+    depends_on:
+      - redis
+      - auth-service
+    networks:
+      - districhat_network
+
+  # Servidor de WebSockets (Laravel Reverb)
+  chat-websocket:
+    image: serversideup/php:8.4-cli
+    container_name: districhat_chat_ws
+    volumes:
+      - ./chat-service:/var/www/html:z
+    ports:
+      - "8080:8080"
+    environment:
+      - AUTORUN_ENABLED=false
+    command: php artisan reverb:start --host=0.0.0.0 --port=8080
+    depends_on:
+      - redis
+    networks:
+      - districhat_network
+
+networks:
+  districhat_network:
+    driver: bridge
