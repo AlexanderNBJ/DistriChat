@@ -31,4 +31,13 @@ export default defineConfig({
             formVariants: true,
         }),
     ],
+    build: {
+        chunkSizeWarningLimit: 1600,
+        rollupOptions: {
+            onwarn(warning, warn) {
+                if (warning.code === 'INVALID_ANNOTATION') return;
+                warn(warning);
+            },
+        },
+    },
 });
