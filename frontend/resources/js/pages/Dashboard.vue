@@ -24,8 +24,13 @@ const scrollToBottom = async () => {
 };
 
 const fetchUsers = async () => {
-    const response = await axios.get(`${AUTH_API}/users`);
-    users.value = response.data.filter((u: any) => u.id !== currentUser.id);
+    try {
+        const response = await axios.get(`${AUTH_API}/users`);
+        users.value = response.data.filter((u: any) => u.id !== currentUser.id);
+    } catch (e) {
+        console.error("Erro ao buscar usuários. O serviço de Auth pode estar fora.");
+        users.value = [];
+    }
 };
 
 const getUserName = (id: number) => {
@@ -57,10 +62,15 @@ const sendMessage = async () => {
         ? { content: newMessage.value, receiver_id: selectedUser.value.id }
         : { content: newMessage.value, room_id: 1 };
 
-    const response = await axios.post(`${CHAT_API}/messages`, payload);
-    messages.value.push(response.data.data);
-    newMessage.value = '';
-    scrollToBottom();
+    try {
+        const response = await axios.post(`${CHAT_API}/messages`, payload);
+        messages.value.push(response.data.data);
+        newMessage.value = '';
+        scrollToBottom();
+    } catch (e) {
+        // O erro 503 será tratado pelo interceptor global (Swal),
+        // mas o catch aqui evita que o log de erro "suje" o console desnecessariamente
+    }
 };
 
 const selectUser = (user: any) => {
