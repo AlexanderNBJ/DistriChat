@@ -15,6 +15,7 @@ const selectedUser = ref(null);
 const newMessage = ref('');
 const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
 const scrollContainer = ref(null);
+const unreadCounts = ref<Record<number, number>>({});
 
 const scrollToBottom = async () => {
     await nextTick();
@@ -75,24 +76,48 @@ const sendMessage = async () => {
 
 const selectUser = (user: any) => {
     selectedUser.value = user;
+
+    if (user) {
+        unreadCounts.value[user.id] = 0;
+    } else {
+        unreadCounts.value[0] = 0;
+    }
+
     fetchMessages();
 };
-
 onMounted(async () => {
     await fetchUsers();
     await fetchMessages();
 
-    window.Echo.channel('chat.room.1').listen('.message.sent', (e: any) => {
-        if (!selectedUser.value) {
-            messages.value.push(e.message);
-            scrollToBottom();
+    // Listener de DMs (Mensagens Diretas)
+    window.Echo.channel(`chat.user.${currentUser.id}`).listen('.message.sent', (e: any) => {
+        const senderId = e.message.sender_id;
+
+        // LÓGICA DE "NÃO LIDO":
+        // Se eu não estou com o chat desse usuário aberto, eu incremento o contador
+        if (!selectedUser.value || selectedUser.value.id !== senderId) {
+            unreadCounts.value[senderId] = (unreadCounts.value[senderId] || 0) + 1;
+
+            // Opcional: Tocar um som de notificação para provar o tempo real
+            // new Audio('/notification.mp3').play();
+        } else {
+            // Se eu ESTOU com o chat aberto, apenas adiciono a mensagem na tela
+            if (!messages.value.find(m => m.id === e.message.id)) {
+                messages.value.push(e.message);
+                scrollToBottom();
+            }
         }
     });
 
-    window.Echo.channel(`chat.user.${currentUser.id}`).listen('.message.sent', (e: any) => {
-        if (selectedUser.value && e.message.sender_id === selectedUser.value.id) {
-            messages.value.push(e.message);
-            scrollToBottom();
+    // Listener da Sala Geral (Opcional: você pode querer contar aqui também)
+    window.Echo.channel('chat.room.1').listen('.message.sent', (e: any) => {
+        if (selectedUser.value !== null) {
+            unreadCounts.value[0] = (unreadCounts.value[0] || 0) + 1;
+        } else {
+            if (!messages.value.find(m => m.id === e.message.id)) {
+                messages.value.push(e.message);
+                scrollToBottom();
+            }
         }
     });
 });
@@ -115,7 +140,7 @@ onMounted(async () => {
 
             <nav class="flex-1 overflow-y-auto px-3 space-y-1 custom-scrollbar">
                 <button @click="selectUser(null)"
-                    :class="['w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 group',
+                    :class="['w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 group relative',
                              !selectedUser ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200 dark:shadow-none' : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400']">
                     <div :class="['w-10 h-10 rounded-xl flex items-center justify-center transition-colors', !selectedUser ? 'bg-white/20' : 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600']">
                         <Hash class="w-5 h-5" />
@@ -124,19 +149,33 @@ onMounted(async () => {
                         <p class="font-bold text-sm">Sala Geral</p>
                         <p :class="['text-[11px]', !selectedUser ? 'text-indigo-100' : 'text-slate-400']">Broadcast Público</p>
                     </div>
+                    <div v-if="unreadCounts[0] > 0"
+                        class="absolute right-4 top-1/2 -translate-y-1/2 bg-rose-500 text-white text-[10px] font-black w-5 h-5 flex items-center justify-center rounded-full shadow-lg border-2 border-white dark:border-slate-800 animate-pulse">
+                        {{ unreadCounts[0] }}
+                    </div>
                 </button>
 
                 <div class="px-4 pt-6 pb-2 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">Mensagens Diretas</div>
 
                 <button v-for="u in users" :key="u.id" @click="selectUser(u)"
-                    :class="['w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200',
-                             selectedUser?.id === u.id ? 'bg-white dark:bg-slate-800 shadow-md ring-1 ring-slate-200 dark:ring-slate-700' : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400']">
-                    <div :class="['w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-inner', getUserColor(u.id)]">
+                    :class="['w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 relative',
+                            selectedUser?.id === u.id ? 'bg-white dark:bg-slate-800 shadow-md ring-1 ring-slate-200 dark:ring-slate-700' : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400']">
+
+                    <!-- Avatar -->
+                    <div :class="['w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-inner shrink-0', getUserColor(u.id)]">
                         {{ getInitials(u.name) }}
                     </div>
+
+                    <!-- Info do Usuário -->
                     <div class="text-left flex-1 min-w-0">
                         <p class="font-bold text-sm truncate text-slate-800 dark:text-slate-200">{{ u.name }}</p>
                         <p class="text-[11px] text-emerald-500 font-medium">Disponível</p>
+                    </div>
+
+                    <!-- Contador de não lidas (Bolinha flutuante) -->
+                    <div v-if="unreadCounts[u.id] > 0"
+                        class="absolute right-4 top-1/2 -translate-y-1/2 bg-indigo-600 text-white text-[10px] font-black w-5 h-5 flex items-center justify-center rounded-full shadow-lg border-2 border-white dark:border-slate-800 animate-pulse">
+                        {{ unreadCounts[u.id] }}
                     </div>
                 </button>
             </nav>

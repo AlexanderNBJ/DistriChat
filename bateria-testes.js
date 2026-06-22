@@ -2,11 +2,32 @@ import http from 'k6/http';
 import { check, sleep } from 'k6';
 
 export const options = {
-    vus: 10,          // 10 Usuários Virtuais Simultâneos (Requisito do trabalho!)
-    duration: '30s',  // Tempo de duração do estresse
+    vus: 10,          
+    duration: '30s',  
 };
 
-export default function () {
+// Esta parte roda uma vez para cada um dos 10 usuários (VU) no início
+export function setup() {
+    const loginUrl = 'http://auth-service:8000/api/login';
+    const loginPayload = JSON.stringify({
+        email: 'sender@k6.com',
+        password: 'secret',
+    });
+
+    const loginRes = http.post(loginUrl, loginPayload, {
+        headers: { 'Content-Type': 'application/json' },
+    });
+
+    const token = loginRes.json('token');
+    
+    if (!token) {
+        console.error("FALHA NO LOGIN DO K6: Verifique se o auth-service está ON e o seeder rodou.");
+    }
+
+    return { token: token };
+}
+
+export default function (data) {
     const url = 'http://chat-service:8001/api/messages';
     
     const payload = JSON.stringify({
@@ -17,7 +38,7 @@ export default function () {
     const params = {
         headers: {
             'Content-Type': 'application/json',
-            'Authorization': 'Bearer 1|token-valido-de-teste',
+            'Authorization': `Bearer ${data.token}`,
         },
     };
 
